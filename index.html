@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Painel de Validades</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg0:#072535; --bg2:#0b3b4f;
+      --header:#e8eef7; --panel:#f3f5f9; --card:#f4f6fa;
+      --text:#0f172a;
+      --primary:#2563eb; --danger:#ef4444; --warning:#f59e0b; --success:#16a34a;
+      --shadow: 0 10px 25px rgba(0,0,0,.18);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1400px 800px at 60% -10%, rgba(255,255,255,.08), transparent 60%),
+        radial-gradient(1200px 700px at 10% 20%, rgba(255,255,255,.05), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg2));
+      min-height:100vh;
+    }
+    .wrap{ max-width:1100px; margin:0 auto; padding:18px 18px 30px; }
+    .header{
+      background:var(--header); border-radius:18px; padding:16px 18px;
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+      box-shadow:var(--shadow); flex-wrap:wrap;
+    }
+    .title h1{ margin:0; font-size:30px; font-weight:900; letter-spacing:-.02em; }
+    .title p{ margin:6px 0 0; color:#334155; font-weight:600; font-size:13px; }
+    .filters{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    select, input[type="text"]{
+      padding:10px 12px; border-radius:12px; border:1px solid #cfd7e4;
+      background:#f8fafc; font-size:13px; min-width:200px; outline:none;
+    }
+    .source{ margin-top:14px; background:var(--panel); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); }
+    .source h3{ margin:0; font-size:13px; font-weight:900; }
+    .source p{ margin:4px 0 10px; color:#334155; font-weight:600; font-size:12px; }
+    .source-row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .dot{ width:8px; height:8px; border-radius:999px; background:#ef4444; display:inline-block; }
+    .status{ font-size:12px; font-weight:800; display:flex; align-items:center; gap:8px; }
+    .btn{ border:1px solid #cbd5e1; background:#fff; padding:8px 12px; border-radius:10px; font-weight:900; cursor:pointer; }
+    .btn.secondary{ background:#f8fafc; }
+    .linkline{ margin-top:10px; font-size:12px; font-weight:700; word-break:break-all; }
+
+    .grid3{ margin-top:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    @media (max-width:980px){
+      .grid3{ grid-template-columns:1fr }
+      select, input[type="text"]{ min-width:100% }
+      .filters{ width:100%; justify-content:stretch }
+      .header{ flex-direction:column; align-items:flex-start }
+    }
+
+    .card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; }
+    .card-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .label{ font-size:12px; font-weight:900; }
+    .pill{ width:34px; height:34px; border-radius:999px; background:#f1f5f9; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-weight:900; }
+
+    .big{ font-size:34px; font-weight:900; letter-spacing:-.02em; margin:0; }
+    .sub{ margin:4px 0 0; color:#334155; font-size:12px; font-weight:700; }
+    .blue{ color:var(--primary) } .red{ color:var(--danger) } .amber{ color:var(--warning) } .green{ color:var(--success) }
+
+    .row2{ margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .row3{ margin-top:14px; display:grid; grid-template-columns:1fr 2fr; gap:14px; }
+    @media (max-width:980px){ .row2,.row3{ grid-template-columns:1fr } }
+
+    .card-title{ font-size:14px; font-weight:900; margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+    .canvaswrap{ background:#fff; border-radius:12px; border:1px solid #d6dde8; padding:10px; }
+
+    .list{ display:flex; flex-direction:column; gap:10px; max-height:310px; overflow:auto; }
+    .item{ background:#fff; border-radius:12px; border:1px solid #d6dde8; padding:10px 12px; display:flex; justify-content:space-between; gap:12px; }
+    .item .main{ font-size:12px; font-weight:900; margin:0; }
+    .item .meta{ font-size:11px; font-weight:700; color:#475569; margin:4px 0 0; line-height:1.35; }
+    .right{ text-align:right; min-width:170px; }
+
+    .badge{ display:inline-flex; align-items:center; justify-content:center; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:900; border:1px solid; margin-top:6px; }
+    .badge.valid{ color:var(--success); border-color:#86efac; background:#f0fdf4 }
+    .badge.expiring{ color:var(--warning); border-color:#fde68a; background:#fffbeb }
+    .badge.expired{ color:var(--danger); border-color:#fecaca; background:#fff1f2 }
+
+    .tablewrap{ margin-top:14px; background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; }
+    table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; border:1px solid #d6dde8; font-size:12px; }
+    thead th{ text-align:left; background:#f1f5f9; padding:10px; border-bottom:1px solid #d6dde8; font-weight:900; }
+    tbody td{ padding:10px; border-bottom:1px solid #edf2f7; vertical-align:top; }
+    tbody tr:hover{ background:#f8fafc }
+    .mono{ font-family: ui-monospace, Menlo, Consolas, "Liberation Mono"; font-size:11px; }
+    .truncate{ max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .debug{ margin-top:14px; background:#0b1220; color:#e5e7eb; border-radius:14px; padding:12px; box-shadow:var(--shadow);
+      font-family: ui-monospace, Menlo, Consolas, "Liberation Mono"; font-size:12px; }
+    .debug pre{ margin:8px 0 0; white-space:pre-wrap; word-break:break-word; }
+    .debug strong{ color:#93c5fd; } .err{ color:#fca5a5; font-weight:900; } .ok{ color:#86efac; font-weight:900; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">
+        <h1>Painel de Validades</h1>
+        <p>Acompanhamento inteligente de materiais e medicamentos</p>
+      </div>
+      <div class="filters">
+        <select id="secaoSelect"><option value="all">Todas as seções</option></select>
+        <select id="daysSelect">
+          <option value="all">Todos os prazos</option>
+          <option value="30">30 dias a vencer</option>
+          <option value="60">60 dias a vencer</option>
+          <option value="90">90 dias a vencer</option>
+          <option value="180">180 dias a vencer</option>
+        </select>
+        <input id="searchInput" type="text" placeholder="Buscar produto ou código..." />
+      </div>
+    </div>
+
+    <div class="source">
+      <h3>Fonte de dados</h3>
+      <p>Carregando do Apps Script (/exec) via JSONP (sem CORS).</p>
+      <div class="source-row">
+        <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Carregando...</span></div>
+        <button class="btn" id="reloadBtn">Recarregar</button>
+        <button class="btn secondary" id="authBtn">Abrir /exec (autorizar)</button>
+      </div>
+      <div class="linkline"><span>Link:</span> <span id="execLink"></span></div>
+    </div>
+
+    <div class="grid3" id="metricsRow"></div>
+    <div class="grid3" id="valuesRow"></div>
+
+    <!-- ✅ Detalhes ao clicar nos cartões -->
+    <div class="card" id="detailCard" style="display:none; margin-top:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div class="card-title" id="detailTitle">Detalhes</div>
+        <button class="btn secondary" id="closeDetailBtn" style="display:none;">Fechar</button>
+      </div>
+      <div class="list" id="detailList" style="max-height:360px;"></div>
+      <div class="sub" id="detailHint" style="margin-top:8px; display:none;">Mostrando até 200 itens (para não pesar).</div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <div class="card-title">📈 Setores com Maior Risco de Vencimento</div>
+        <div class="canvaswrap"><canvas id="barChart" height="240"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📉 Tendência de Vencimentos</div>
+        <div class="canvaswrap"><canvas id="lineChart" height="240"></canvas></div>
+      </div>
+    </div>
+
+    <div class="row3">
+      <div class="card">
+        <div class="card-title">🥧 Distribuição por Setor</div>
+        <div class="canvaswrap"><canvas id="pieChart" height="240"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚠️ Itens com Prioridade de Atenção</div>
+        <div class="list" id="urgentList"></div>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <div class="card-title">📋 Tabela Detalhada de Produtos</div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th><th>Produto</th><th>Seção</th><th>Fabricante</th><th>Lote</th>
+              <th>Validade</th><th>Qtd</th><th>Total</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="debug" id="debugBox">
+      <div><strong>DEBUG</strong> | Linhas: <span id="dbgLines">0</span> | Headers: <span id="dbgHeaders">-</span></div>
+      <div id="dbgMsg"></div>
+      <pre id="dbgRaw">Aguardando carregamento...</pre>
+    </div>
+  </div>
+
+<script>
+  // ✅ SUA URL /exec
+  const EXEC_URL = "https://script.google.com/macros/s/AKfycbzeFkSluZKyhvksdideWZhQ4P1fTW0wxrcTHC9rUksK2zz4IccEcm28ij_f87DTWT2h/exec";
+  document.getElementById("execLink").textContent = EXEC_URL;
+
+  // ✅ Seções permitidas (aparecem no filtro)
+  const ALLOWED_SECTIONS = [
+    "Satélite CTI - Viva Rio",
+    "Satélite Ortopedia - Viva Rio",
+    "Satélite CER clínico - Viva Rio",
+    "Satélite Emergência - Viva Rio",
+    "Almoxarifado - Viva Rio",
+    "CAF - Viva Rio",
+  ];
+
+  // Normaliza para comparar (tira acento, caixa, espaços)
+  function normTxt(s){
+    return String(s||"")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .toLowerCase()
+      .replace(/\s+/g," ")
+      .trim();
+  }
+
+  // Mapeia o texto do CSV para o "nome padrão" que você quer
+  function mapSectionName(raw){
+    const n = normTxt(raw);
+
+    if (n.includes("almoxarifado") && n.includes("viva rio")) return "Almoxarifado - Viva Rio";
+    if ((n.includes("caf") || n.includes("grandes volumes")) && n.includes("viva rio")) return "CAF - Viva Rio";
+    if (n.includes("satelite") && n.includes("cti") && n.includes("viva rio")) return "Satélite CTI - Viva Rio";
+    if (n.includes("satelite") && (n.includes("ortopedia") || n.includes("orto")) && n.includes("viva rio")) return "Satélite Ortopedia - Viva Rio";
+    if (n.includes("satelite") && (n.includes("cer clinico") || (n.includes("cer") && n.includes("clin"))) && n.includes("viva rio")) return "Satélite CER clínico - Viva Rio";
+    if (n.includes("satelite") && (n.includes("emergencia") || n.includes("emergência")) && n.includes("viva rio")) return "Satélite Emergência - Viva Rio";
+
+    const found = ALLOWED_SECTIONS.find(s => normTxt(s) === n);
+    return found || raw || "";
+  }
+
+  let data = [];
+  let barChart, lineChart, pieChart;
+
+  const brl = (v) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v||0));
+  const pad2 = (n) => String(n).padStart(2,'0');
+
+  function setStatus(ok, msg){
+    document.getElementById("statusDot").style.background = ok ? "#16a34a" : "#ef4444";
+    document.getElementById("statusText").textContent = msg;
+  }
+  function setDbg(msg, ok){
+    document.getElementById("dbgMsg").innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
+  }
+  function escapeHtml(s){
+    return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+  }
+  function formatDateBR(iso){
+    if (!iso) return "";
+    const d = new Date(iso + "T00:00:00");
+    if (Number.isNaN(d.getTime())) return iso;
+    return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`;
+  }
+  function daysDiff(iso){
+    const target = new Date((iso||"") + "T00:00:00");
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    if (Number.isNaN(end.getTime())) return 999999;
+    return Math.round((end - start) / (1000*60*60*24));
+  }
+  function getStatus(iso){
+    const d = daysDiff(iso);
+    if (d < 0) return "expired";
+    if (d <= 30) return "expiring";
+    return "valid";
+  }
+  function badge(status){
+    if (status==="expired") return `<span class="badge expired">Vencido</span>`;
+    if (status==="expiring") return `<span class="badge expiring">Vencendo</span>`;
+    return `<span class="badge valid">Válido</span>`;
+  }
+
+  function stripAccents(s){ return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+  function normHeader(h){
+    const x = stripAccents(h).toLowerCase().trim();
+    const map = {
+      "secao":"secao","seção":"secao","setor":"secao","origem":"secao","local":"secao",
+      "codigo":"codigo","código":"codigo","jde":"codigo","cod":"codigo",
+      "produto":"produto","descrição":"produto","descricao":"produto","item":"produto","material":"produto",
+      "embalagem":"embalagem",
+      "fabricante":"fabricante","marca":"fabricante",
+      "lote":"lote",
+      "validade":"data_validade","data validade":"data_validade","dt validade":"data_validade","data_validade":"data_validade",
+      "valor unitario":"valor_unitario","valor_unitário":"valor_unitario","valor_unitario":"valor_unitario","vl unit":"valor_unitario",
+      "quantidade":"quantidade","qtd":"quantidade","saldo":"quantidade","qtde":"quantidade",
+      "total":"total","valor total":"total","valor_total":"total","custo total":"total"
+    };
+    return map[x] || x.replace(/\s+/g,"_");
+  }
+  function normNumberBR(v){
+    const s = String(v ?? "").trim();
+    if (!s) return 0;
+    let x = s.replace(/\s/g,"").replace("R$","").replace("r$","");
+    const hasComma = x.includes(","), hasDot = x.includes(".");
+    if (hasComma && hasDot){
+      if (x.lastIndexOf(",") > x.lastIndexOf(".")) x = x.replace(/\./g,"").replace(",",".");
+      else x = x.replace(/,/g,"");
+    } else if (hasComma && !hasDot) x = x.replace(",",".");
+    const n = Number(x);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function normDate(v){
+    const s = String(v ?? "").trim();
+    if (!s) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [dd,mm,yyyy]=s.split("/");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime()))
+      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    return "";
+  }
+  function detectDelimiter(line){
+    const c = (line.match(/,/g)||[]).length;
+    const s = (line.match(/;/g)||[]).length;
+    return s > c ? ";" : ",";
+  }
+  function parseCSVLine(line, delim){
+    const out=[]; let cur=""; let q=false;
+    for (let i=0;i<line.length;i++){
+      const ch=line[i];
+      if (ch === '"'){
+        if (q && line[i+1] === '"'){ cur+='"'; i++; }
+        else q=!q;
+      } else if (ch===delim && !q){ out.push(cur); cur=""; }
+      else cur+=ch;
+    }
+    out.push(cur);
+    return out;
+  }
+  function parseCSV(text){
+    text = String(text||"").replace(/^\uFEFF/,'');
+    const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+    if (!lines.length) return { rows:[], headers:[] };
+
+    const delim = detectDelimiter(lines[0]);
+    const rawHeaders = parseCSVLine(lines[0], delim).map(h=>h.trim());
+    const headers = rawHeaders.map(normHeader);
+
+    const rows = lines.slice(1).map(line=>{
+      const cols = parseCSVLine(line, delim);
+      const obj = {};
+      headers.forEach((h,i)=> obj[h] = (cols[i] ?? "").trim());
+
+      const out = {
+        secao: mapSectionName(obj.secao || ""),
+        codigo: obj.codigo || "",
+        produto: obj.produto || "",
+        embalagem: obj.embalagem || "",
+        fabricante: obj.fabricante || "",
+        lote: obj.lote || "",
+        data_validade: normDate(obj.data_validade),
+        valor_unitario: normNumberBR(obj.valor_unitario),
+        quantidade: normNumberBR(obj.quantidade),
+        total: normNumberBR(obj.total)
+      };
+      if (!out.total && out.valor_unitario && out.quantidade) out.total = out.valor_unitario * out.quantidade;
+      return out;
+    }).filter(r => r.codigo || r.produto || r.secao);
+
+    return { rows, headers };
+  }
+
+  // ===================== JSONP LOADER (sem CORS) =====================
+  function loadJSONP(baseUrl, timeoutMs=20000){
+    return new Promise((resolve, reject)=>{
+      const cb = "cb_" + Math.random().toString(16).slice(2);
+      const script = document.createElement("script");
+      let done = false;
+
+      const t = setTimeout(()=>{
+        if (done) return;
+        done = true;
+        cleanup();
+        reject(new Error("Timeout: /exec não chamou callback (verifique implantação nova e acesso)."));
+      }, timeoutMs);
+
+      function cleanup(){
+        try{ delete window[cb]; }catch(e){}
+        if (script && script.parentNode) script.parentNode.removeChild(script);
+        clearTimeout(t);
+      }
+
+      window[cb] = (payload)=>{
+        if (done) return;
+        done = true;
+        cleanup();
+        resolve(payload);
+      };
+
+      const sep = baseUrl.includes("?") ? "&" : "?";
+      script.src = `${baseUrl}${sep}format=json&callback=${cb}&_=${Date.now()}`;
+
+      script.onerror = ()=>{
+        if (done) return;
+        done = true;
+        cleanup();
+        reject(new Error("Falha ao carregar JSONP (script onerror). Isso acontece se o /exec estiver pedindo login/permissão ou URL errada."));
+      };
+
+      document.body.appendChild(script);
+    });
+  }
+
+  function renderSelect(rows){
+    const sel = document.getElementById("secaoSelect");
+    const cur = sel.value || "all";
+
+    // ✅ usa sempre as permitidas, mas só mostra as que existem no CSV atual
+    const present = new Set(rows.map(r => mapSectionName(r.secao)).filter(Boolean).map(normTxt));
+    const list = ALLOWED_SECTIONS.filter(s => present.has(normTxt(s)));
+
+    sel.innerHTML =
+      `<option value="all">Todas as seções</option>` +
+      list.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+
+    sel.value = (cur !== "all" && list.includes(cur)) ? cur : "all";
+  }
+
+  function filteredRows(){
+    const sec = document.getElementById("secaoSelect").value;
+    const days = document.getElementById("daysSelect").value;
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+
+    return data
+      .map(r=>({ ...r, status:getStatus(r.data_validade), daysToExpire:daysDiff(r.data_validade) }))
+      .filter(r=>{
+        // ✅ trava para exibir somente as seções permitidas
+        if (!ALLOWED_SECTIONS.some(s => normTxt(s) === normTxt(r.secao))) return false;
+
+        const okSec = (sec==="all") || (r.secao===sec);
+        const okQ = !q || String(r.produto||"").toLowerCase().includes(q) || String(r.codigo||"").toLowerCase().includes(q);
+
+        let okDays = true;
+        if (days !== "all"){
+          const d = parseInt(days,10);
+          okDays = r.daysToExpire <= d && r.daysToExpire >= 0;
+        }
+        return okSec && okQ && okDays;
+      });
+  }
+
+  function metrics(rows){
+    const total = rows.length;
+    const expired = rows.filter(r=>r.status==="expired").length;
+    const expiring = rows.filter(r=>r.status==="expiring").length;
+
+    const totalValue = rows.reduce((s,r)=>s+(r.total||0),0);
+    const expiredValue = rows.filter(r=>r.status==="expired").reduce((s,r)=>s+(r.total||0),0);
+    const expiringValue = rows.filter(r=>r.status==="expiring").reduce((s,r)=>s+(r.total||0),0);
+
+    return { total, expired, expiring, totalValue, expiredValue, expiringValue };
+  }
+
+  function showMetricDetails(type){
+    const rows = filteredRows();
+
+    let title = "Detalhes";
+    let list = rows;
+
+    if (type === "expired"){
+      title = "Itens Vencidos";
+      list = rows.filter(r=>r.status==="expired");
+    } else if (type === "expiring"){
+      title = "Itens Vencendo em 30 dias";
+      list = rows.filter(r=>r.status==="expiring");
+    } else {
+      title = "Todos os Itens (filtrado)";
+    }
+
+    const card = document.getElementById("detailCard");
+    const ttl = document.getElementById("detailTitle");
+    const box = document.getElementById("detailList");
+    const btn = document.getElementById("closeDetailBtn");
+    const hint = document.getElementById("detailHint");
+
+    ttl.textContent = `${title} • ${list.length} itens`;
+    card.style.display = "block";
+    btn.style.display = "inline-flex";
+    hint.style.display = "block";
+
+    const slice = list.slice(0, 200);
+    box.innerHTML = slice.map(r=>`
+      <div class="item">
+        <div style="flex:1">
+          <p class="main">${escapeHtml(r.codigo)} - ${escapeHtml(String(r.produto||"").slice(0,80))}${String(r.produto||"").length>80?"...":""}</p>
+          <p class="meta">${escapeHtml(r.secao)} • Lote: ${escapeHtml(r.lote)} • Val: ${escapeHtml(formatDateBR(r.data_validade))}</p>
+        </div>
+        <div class="right">
+          <p class="main">${r.daysToExpire < 0 ? `${Math.abs(r.daysToExpire)} dias vencido` : `${r.daysToExpire} dias`}</p>
+          ${badge(r.status)}
+        </div>
+      </div>
+    `).join("") || `<div class="sub">Nada para mostrar com os filtros atuais.</div>`;
+
+    card.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  function closeDetails(){
+    document.getElementById("detailCard").style.display = "none";
+  }
+
+  function renderMetrics(m){
+    document.getElementById("metricsRow").innerHTML = `
+      <div class="card" style="cursor:pointer" data-metric="total">
+        <div class="card-head"><div class="label blue">Total de Itens</div><div class="pill">📦</div></div>
+        <p class="big">${m.total}</p><p class="sub">produtos em estoque</p>
+      </div>
+      <div class="card" style="cursor:pointer" data-metric="expired">
+        <div class="card-head"><div class="label red">Itens Vencidos</div><div class="pill">⚠️</div></div>
+        <p class="big red">${m.expired}</p><p class="sub">requer ação imediata</p>
+      </div>
+      <div class="card" style="cursor:pointer" data-metric="expiring">
+        <div class="card-head"><div class="label amber">Vencendo em 30 dias</div><div class="pill">📅</div></div>
+        <p class="big amber">${m.expiring}</p><p class="sub">atenção necessária</p>
+      </div>
+    `;
+
+    document.getElementById("valuesRow").innerHTML = `
+      <div class="card"><div class="card-head"><div class="label red">Valor Vencidos</div><div class="pill">💲</div></div>
+        <p class="big red" style="font-size:18px">${brl(m.expiredValue)}</p><p class="sub">já vencidos</p></div>
+      <div class="card"><div class="card-head"><div class="label amber">Valor A Vencer</div><div class="pill">💲</div></div>
+        <p class="big amber" style="font-size:18px">${brl(m.expiringValue)}</p><p class="sub">vencendo em 30 dias</p></div>
+      <div class="card"><div class="card-head"><div class="label green">Valor Total</div><div class="pill">💲</div></div>
+        <p class="big green" style="font-size:18px">${brl(m.totalValue)}</p><p class="sub">estoque filtrado</p></div>
+    `;
+
+    document.querySelectorAll('#metricsRow .card[data-metric]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const type = el.getAttribute('data-metric');
+        showMetricDetails(type);
+      });
+    });
+  }
+
+  function sectionBar(rows){
+    const exp = rows.filter(r=>r.daysToExpire <= 90 && r.daysToExpire >= 0);
+    const map = {};
+    exp.forEach(r=> map[r.secao]=(map[r.secao]||0)+(r.quantidade||0));
+    return Object.entries(map).map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,12);
+  }
+
+  function trend(rows){
+    const map = {};
+    rows.forEach(r=>{
+      if (!r.data_validade) return;
+      const d = new Date(r.data_validade+"T00:00:00");
+      if (Number.isNaN(d.getTime())) return;
+      const k = `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+      map[k] = (map[k]||0) + (r.quantidade||0);
+    });
+    return Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>{
+      const [y,m]=k.split("-");
+      return { label:`${m}/${y}`, v };
+    });
+  }
+
+  function sectorPie(rows){
+    const map = {};
+    rows.forEach(r=> map[r.secao]=(map[r.secao]||0)+(r.quantidade||0));
+    return Object.entries(map).map(([name,v])=>({name,v})).sort((a,b)=>b.v-a.v).slice(0,10);
+  }
+
+  function renderCharts(rows){
+    const b = sectionBar(rows);
+    const t = trend(rows);
+    const p = sectorPie(rows);
+
+    const gridColor = "rgba(15, 23, 42, 0.12)";
+    const tickColor = "#334155";
+
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById("barChart"),{
+      type:"bar",
+      data:{ labels:b.map(x=>x.name), datasets:[{ data:b.map(x=>x.qty),
+        backgroundColor:"rgba(245, 158, 11, 0.85)", borderColor:"rgba(245, 158, 11, 1)", borderWidth:1, borderRadius:8 }] },
+      options:{ plugins:{ legend:{display:false}}, scales:{
+        x:{ ticks:{color:tickColor}, grid:{display:false} },
+        y:{ beginAtZero:true, ticks:{color:tickColor}, grid:{color:gridColor} }
+      } }
+    });
+
+    if (lineChart) lineChart.destroy();
+    lineChart = new Chart(document.getElementById("lineChart"),{
+      type:"line",
+      data:{ labels:t.map(x=>x.label), datasets:[{ data:t.map(x=>x.v),
+        borderColor:"rgba(37, 99, 235, 1)", backgroundColor:"rgba(37, 99, 235, 0.15)",
+        fill:true, tension:.35, pointRadius:3 }] },
+      options:{ plugins:{ legend:{display:false}}, scales:{
+        x:{ ticks:{color:tickColor}, grid:{display:false} },
+        y:{ beginAtZero:true, ticks:{color:tickColor}, grid:{color:gridColor} }
+      } }
+    });
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(document.getElementById("pieChart"),{
+      type:"pie",
+      data:{ labels:p.map(x=>x.name), datasets:[{ data:p.map(x=>x.v),
+        backgroundColor:[
+          "rgba(37, 99, 235, 0.85)","rgba(22, 163, 74, 0.85)","rgba(245, 158, 11, 0.85)",
+          "rgba(239, 68, 68, 0.85)","rgba(14, 116, 144, 0.85)","rgba(99, 102, 241, 0.85)",
+          "rgba(2, 132, 199, 0.85)","rgba(234, 179, 8, 0.85)","rgba(5, 150, 105, 0.85)","rgba(148, 163, 184, 0.85)"
+        ],
+        borderColor:"#ffffff", borderWidth:2 }] },
+      options:{ plugins:{ legend:{ position:"bottom" } } }
+    });
+  }
+
+  function renderUrgent(rows){
+    const urgent = rows.filter(r=>r.daysToExpire <= 30).sort((a,b)=>a.daysToExpire-b.daysToExpire).slice(0,10);
+    document.getElementById("urgentList").innerHTML = urgent.length ? urgent.map(r=>`
+      <div class="item">
+        <div style="flex:1">
+          <p class="main">${escapeHtml(r.codigo)} - ${escapeHtml(String(r.produto||"").slice(0,70))}${String(r.produto||"").length>70?"...":""}</p>
+          <p class="meta">${escapeHtml(r.secao)} • Lote: ${escapeHtml(r.lote)} • Qtd: ${escapeHtml(r.quantidade)} • Total: ${escapeHtml(brl(r.total))}</p>
+        </div>
+        <div class="right">
+          <p class="main">${r.daysToExpire < 0 ? `${Math.abs(r.daysToExpire)} dias vencido` : `${r.daysToExpire} dias`}</p>
+          ${badge(r.status)}
+        </div>
+      </div>
+    `).join("") : `<div class="sub">Nenhum item em até 30 dias (com os filtros atuais).</div>`;
+  }
+
+  function renderTable(rows){
+    const order={expired:0, expiring:1, valid:2};
+    const sorted=[...rows].sort((a,b)=>(order[a.status]??9)-(order[b.status]??9));
+    document.getElementById("tbody").innerHTML = sorted.map(r=>`
+      <tr>
+        <td class="mono">${escapeHtml(r.codigo)}</td>
+        <td class="truncate" title="${escapeHtml(r.produto)}">${escapeHtml(r.produto)}</td>
+        <td>${escapeHtml(r.secao)}</td>
+        <td>${escapeHtml(r.fabricante)}</td>
+        <td>${escapeHtml(r.lote)}</td>
+        <td>${escapeHtml(formatDateBR(r.data_validade))}</td>
+        <td>${escapeHtml(r.quantidade)}</td>
+        <td>${escapeHtml(brl(r.total))}</td>
+        <td>${badge(r.status)}</td>
+      </tr>
+    `).join("");
+  }
+
+  function render(){
+    const rows = filteredRows();
+    const m = metrics(rows);
+    renderMetrics(m);
+    renderCharts(rows);
+    renderUrgent(rows);
+    renderTable(rows);
+
+    // se detalhes estiverem abertos, não mexe (pra não irritar)
+  }
+
+  async function load(){
+    try{
+      setStatus(true,"Carregando (JSONP)...");
+      setDbg("Buscando /exec?format=json&callback=...", true);
+      document.getElementById("dbgRaw").textContent = "Aguardando resposta...";
+
+      const payload = await loadJSONP(EXEC_URL, 25000);
+
+      const csv = payload && payload.csv ? String(payload.csv) : "";
+      document.getElementById("dbgRaw").textContent = csv.slice(0, 2500);
+
+      if (!csv.trim()) throw new Error("Recebi payload, mas csv veio vazio.");
+
+      const parsed = parseCSV(csv);
+      document.getElementById("dbgHeaders").textContent = parsed.headers.join(", ") || "(sem headers)";
+      document.getElementById("dbgLines").textContent = parsed.rows.length;
+
+      if (!parsed.rows.length) throw new Error("CSV recebido, mas não gerou linhas. Verifique cabeçalhos/CSV.");
+
+      data = parsed.rows;
+
+      // ✅ mantém somente permitidas já no dataset
+      data = data.filter(r => ALLOWED_SECTIONS.some(s => normTxt(s) === normTxt(r.secao)));
+
+      renderSelect(data);
+
+      setStatus(true, `OK: dados carregados ✅ (${data.length} linhas)`);
+      setDbg("OK: JSONP funcionou e CSV foi processado.", true);
+
+      render();
+    }catch(e){
+      console.error(e);
+      setStatus(false,"Erro ao carregar. Veja o DEBUG.");
+      setDbg("ERRO: " + (e && e.message ? e.message : e), false);
+    }
+  }
+
+  document.getElementById("reloadBtn").addEventListener("click", load);
+  document.getElementById("authBtn").addEventListener("click", ()=> window.open(EXEC_URL, "_blank"));
+  document.getElementById("secaoSelect").addEventListener("change", render);
+  document.getElementById("daysSelect").addEventListener("change", render);
+  document.getElementById("searchInput").addEventListener("input", render);
+  document.getElementById("closeDetailBtn").addEventListener("click", closeDetails);
+
+  load();
+</script>
+</body>
+</html>
